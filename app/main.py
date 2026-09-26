@@ -1,5 +1,7 @@
-from fastapi import FastAPI, UploadFile, File,Form
+from fastapi import FastAPI, UploadFile, File, Form
 from uuid import uuid4
+import os
+from datetime import datetime
 
 from app.database import SessionLocal
 from app.models import Loan, LoanDocument
@@ -8,7 +10,70 @@ from app.services.storage_service import upload_file_to_supabase
 from app.services.ai_Service import ai_service
 
 
-app = FastAPI()
+app = FastAPI(
+    title="PickLoan API",
+    description="AI-powered loan document processing backend",
+    version="1.0.0"
+)
+
+# --------------------------------
+# Health Check Endpoints
+# --------------------------------
+
+@app.get("/health")
+async def health_check():
+    """
+    Health check endpoint for container orchestration systems (Docker, Kubernetes).
+    Returns 200 OK if the service is running.
+    """
+    return {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "version": "1.0.0"
+    }
+
+
+@app.get("/status")
+async def status_check():
+    """
+    Detailed status check including database connectivity.
+    """
+    try:
+        db = SessionLocal()
+        # Try a simple query to verify database connection
+        db.execute("SELECT 1")
+        db.close()
+        db_status = "connected"
+    except Exception as e:
+        db_status = f"disconnected: {str(e)}"
+
+    return {
+        "status": "operational",
+        "timestamp": datetime.utcnow().isoformat(),
+        "version": "1.0.0",
+        "database": db_status,
+        "environment": os.getenv("NODE_ENV", "development"),
+        "supabase_configured": bool(os.getenv("SUPABASE_URL")),
+        "nova_api_configured": bool(os.getenv("NOVA_API_KEY"))
+    }
+
+
+@app.get("/")
+async def root():
+    """
+    Root endpoint with API information.
+    """
+    return {
+        "message": "PickLoan API v1.0.0",
+        "description": "AI-powered loan document processing",
+        "endpoints": {
+            "health": "/health",
+            "status": "/status",
+            "upload": "/upload (POST)",
+            "docs": "/docs",
+            "openapi": "/openapi.json"
+        }
+    }
 
 
 @app.post("/upload")
